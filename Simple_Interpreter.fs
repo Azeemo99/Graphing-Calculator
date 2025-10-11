@@ -8,7 +8,7 @@
 open System
 
 type terminal = 
-    Add | Sub | Mul | Div | Lpar | Rpar | Num of int | Rem | Pow | Neg
+    Add | Sub | Mul | Div | Lpar | Rpar | Num of int | Rem | Pow 
 
 let str2lst s = [for c in s -> c]
 let isblank c = System.Char.IsWhiteSpace c
@@ -21,6 +21,7 @@ let rec scInt(iStr, iVal) =
     match iStr with
     c :: tail when isdigit c -> scInt(tail, 10*iVal+(intVal c))
     | _ -> (iStr, iVal)
+
 
 let lexer input = 
     let rec scan input =
@@ -91,8 +92,16 @@ let parseNeval tList =
         | Mul :: tail -> let (tLst, tval) = NR tail
                          Topt (tLst, value * tval)
         | Div :: tail -> let (tLst, tval) = NR tail
-                         Topt (tLst, value / tval)
+                         if (tval = 0) then 
+                            Console.WriteLine("Division by zero error\n")
+                            raise parseError    
+                         else 
+                            Topt (tLst, value / tval)
         | Rem :: tail -> let (tLst, tval) = NR tail
+                         if (tval = 0) then 
+                            Console.WriteLine("Division by zero error\n")
+                            raise parseError    
+                         else
                          Topt (tLst, value % tval)
         | Pow :: tail -> let (tLst, tval) = NR tail
                          Topt (tLst, (int) (float (value) ** tval))
