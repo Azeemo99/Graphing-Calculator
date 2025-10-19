@@ -1,12 +1,16 @@
 ﻿<Window x:Class="InterpreterGUI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:InterpreterGUI"
-        mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Math Interpreter" Height="200" Width="400">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
+        <TextBox x:Name="InputBox" Grid.Row="0" Height="30" Text="Enter expression"/>
+        <Button Content="Evaluate" Grid.Row="1" Margin="0,10,0,0" Height="30" Click="Evaluate_Click"/>
+        <TextBox x:Name="ResultBox" Grid.Row="2" Height="30" IsReadOnly="True" Margin="0,10,0,0"/>
     </Grid>
 </Window>
