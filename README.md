@@ -1,1 +1,2 @@
-Desktop maths software solution that incorporates an interpreter
+# GraphingCalculator
+Graphing calculator utilising an F# interpreter.
