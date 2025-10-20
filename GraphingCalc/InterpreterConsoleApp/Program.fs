@@ -4,6 +4,7 @@ module InterpreterCore
 
 
 //Advanced programing Tom  
+//blah blah
 // Simple Interpreter in F#
 // Author: R.J. Lapeer 
 // Date: 23/10/2022
@@ -133,7 +134,7 @@ let rem (v1: v, v2:v) =
 // <NR>       ::= "Num" <value> | "(" <E> ")" | "-" <NR> | add float stuff 
 
 let parser tList = 
-    let rec E tList = (T >> Eopt) tList        
+    let rec E tList = (T >> Eopt) tList         // >> is forward function composition operator: let inline (>>) f g x = g(f x)
     and Eopt tList = 
         match tList with
         | Add :: tail -> (T >> Eopt) tail
@@ -225,7 +226,6 @@ let rec printTList (lst:list<terminal>) : list<string> =
 let eval (input: string) =
     try
         let oList = lexer input
-        printTList oList
         let Out = parseNeval oList
         match snd Out with
         | IVal i1 -> (true, sprintf "Result = %d" i1)

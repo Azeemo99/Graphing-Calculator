@@ -22,8 +22,24 @@ namespace InterpreterGUI
         private void Evaluate_Click(object sender, RoutedEventArgs e)
         {
             string input = InputBox.Text;
-            string result = InterpreterCore.eval(input); 
-            ResultBox.Text = result;
+            var s = InterpreterCore.eval(input);
+            if (s.Item1)
+            { 
+                ResultBox.Text = s.Item2;
+                
+                ErrorBox.Text = "";
+            }
+            else
+            {
+                ErrorBox.Text = s.Item2;
+                ResultBox.Text = "";
+            }
+
+        }
+
+        private void ResultBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
         }
     }
 }
