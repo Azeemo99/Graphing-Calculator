@@ -4,7 +4,6 @@ module InterpreterCore
 
 
 //Advanced programing Tom  
-//blah blah
 // Simple Interpreter in F#
 // Author: R.J. Lapeer 
 // Date: 23/10/2022
@@ -127,6 +126,7 @@ let rem (v1: v, v2:v) =
 
 
 // Grammar in BNF:
+// STATEMENT = VAR = NUMBER * VAR + VAR
 // <E>        ::= <T> <Eopt>
 // <Eopt>     ::= "+" <T> <Eopt> | "-" <T> <Eopt> | <empty>
 // <T>        ::= <NR> <Topt>
@@ -134,19 +134,21 @@ let rem (v1: v, v2:v) =
 // <NR>       ::= "Num" <value> | "(" <E> ")" | "-" <NR> | add float stuff 
 
 let parser tList = 
-    let rec E tList = (T >> Eopt) tList         // >> is forward function composition operator: let inline (>>) f g x = g(f x)
+    let rec E tList = (T >> Eopt) tList        
     and Eopt tList = 
         match tList with
         | Add :: tail -> (T >> Eopt) tail
         | Sub :: tail -> (T >> Eopt) tail
+        
         | _ -> tList
     and T tList = (NR >> Topt) tList
     and Topt tList =
         match tList with
+        | Pow :: tail -> (NR >> Topt) tail
         | Mul :: tail -> (NR >> Topt) tail
         | Div :: tail -> (NR >> Topt) tail
         | Rem :: tail -> (NR >> Topt) tail
-        | Pow :: tail -> (NR >> Topt) tail
+        
         | _ -> tList
     and NR tList =
         match tList with
@@ -167,10 +169,13 @@ let parseNeval tList =
                          Eopt (tLst, add(value, tval))
         | Sub :: tail -> let (tLst, tval) = T tail
                          Eopt (tLst, sub(value, tval))
+
         | _ -> (tList, value)
-    and T tList = (NR >> Topt) tList
+    and T tList = (F >> Topt) tList
     and Topt (tList, value: v) =
         match tList with
+        | Pow :: tail -> let (tLst, tval) = NR tail
+                         Topt (tLst, pow(value, tval))
         | Mul :: tail -> let (tLst, tval) = NR tail
                          Topt (tLst, mul(value , tval))
         | Div :: tail -> let (tLst, tval) = NR tail
@@ -193,9 +198,20 @@ let parseNeval tList =
                                 raise parseError
                          | _ -> Topt (tLst, rem(value, tval))
 
-        | Pow :: tail -> let (tLst, tval) = NR tail
-                         Topt (tLst, pow(value, tval))
+
         | _ -> (tList, value)
+    
+    and F tList = (NR >> Powopt) tList
+    
+    and Powopt (tList, value) = 
+        match tList with
+        | Pow :: tail -> let (tLst, tval) = NR tail
+                         Powopt (tLst, pow(value, tval))    
+        |_ -> (tList, value)
+
+
+
+
     and NR tList =
         match tList with 
         | Sub :: tail -> let (tLst, value) = NR tail
@@ -226,6 +242,7 @@ let rec printTList (lst:list<terminal>) : list<string> =
 let eval (input: string) =
     try
         let oList = lexer input
+        printTList oList
         let Out = parseNeval oList
         match snd Out with
         | IVal i1 -> (true, sprintf "Result = %d" i1)
