@@ -39,6 +39,7 @@ namespace InterpreterGUI
 
         private void ResultBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            String s = "y = 1x + c";
 
         }
     }
