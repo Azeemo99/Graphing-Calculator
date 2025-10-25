@@ -8,9 +8,7 @@ module InterpreterCore
 
 open System
 type builtInFunc = 
-    | Sin
-    | Cos
-    | Tan 
+    | Sin | Cos | Tan | Exp | Log | Sqrt 
 
 type v = 
     | IVal of int
@@ -32,7 +30,7 @@ let parseError = System.Exception("Parser error")
 let rec scString(idStr, id) = 
     match idStr with
     |c:: tail when isLetter c -> scString(tail, sprintf "%s%c" id c)
-    |_ -> (idStr, id)
+    |_ -> (idStr, id)   
 
 
 let rec scNumber(iStr, iVal, hasPoi:bool) = 
@@ -87,7 +85,23 @@ let lexer input =
         | '=' :: tail -> Equ :: scan tail
         | c :: tail when isblank c -> scan tail
         | c :: tail when isLetter c -> let (idStr, id) = scString(tail, sprintf "%c" c)
-                                       Id id :: scan tail
+                                       if (id.ToLower() = "sin") then 
+                                          Func Sin :: scan idStr
+                                       else if (id.ToLower() = "cos") then
+                                          Func Cos :: scan idStr
+                                       else if (id.ToLower() = "tan") then 
+                                          Func Tan :: scan idStr
+                                       else if (id.ToLower() = "exp") then 
+                                          Func Exp :: scan idStr
+                                       else if (id.ToLower() = "log") then 
+                                          Func Log :: scan idStr
+                                       else if (id.ToLower() = "sqrt") then 
+                                          Func Sqrt :: scan idStr
+
+                                       else 
+                                          Id id :: scan idStr
+                                       
+
         | c :: tail when isdigit c -> let (iStr, iVal, hasPoi) = scNumber(tail, sprintf "%c" c, false) 
                                       if hasPoi then 
                                           Flo (float iVal) :: scan iStr  
@@ -149,7 +163,34 @@ let rem (v1: v, v2:v) =
     | (IVal i1, FVal f2) -> FVal ((float)i1 % f2)
     | (FVal f1, IVal i2) -> FVal (f1 % (float)i2)
 
+let sin(v1: v) = 
+    match (v1) with 
+    | (IVal i1) -> FVal (Math.Sin((float) i1))
+    | (FVal f1) -> FVal (Math.Sin(f1))
 
+let cos(v1: v) = 
+    match (v1) with 
+    | (IVal i1) -> FVal (Math.Cos((float) i1))
+    | (FVal f1) -> FVal (Math.Cos(f1))
+
+let tan(v1: v) = 
+    match (v1) with 
+    | (IVal i1) -> FVal (Math.Tan((float) i1))
+    | (FVal f1) -> FVal (Math.Tan(f1))
+
+let exp(v1: v) = 
+    match (v1) with 
+    | (IVal i1) -> FVal (Math.Exp((float) i1))
+    | (FVal f1) -> FVal (Math.Exp(f1))
+
+let log(v1 : v ) = 
+    match (v1) with
+    | (IVal i1) -> FVal (Math.Log10((float) i1))
+    | (FVal f1) -> FVal (Math.Log10(f1))
+let sqrt(v1: v) = 
+    match (v1) with 
+    | (IVal i1) -> FVal (Math.Sqrt((float) i1))
+    | (FVal f1) -> FVal (Math.Sqrt(f1))
 
 // Grammar in BNF:
 // STATEMENT = VAR = NUMBER * VAR + VAR
@@ -159,7 +200,7 @@ let rem (v1: v, v2:v) =
 // <F>        ::= <NR> <Powopt>
 // <T>        ::= <F> <Topt>
 // <Topt>     ::= "*" <NR> <Topt> | "/" <NR> <Topt> | "%" <NR> <Topt>| <empty>
-// <NR>       ::= "Num" <value> | "(" <E> ")" | "-" <NR> | "Flo" <Value>
+// <NR>       ::= "Num" <value> | "(" <E> ")" | "-" <NR> | "Flo" <Value> | Func "(" <E> ")"
 
 
 //Non-Evaluating Parser
@@ -172,27 +213,31 @@ let parser tList =
         
         | _ -> tList
     and T tList = (F >> Topt) tList
+    
     and Topt tList =
         match tList with
-        
-        | Mul :: tail -> (NR >> Topt) tail
-        | Div :: tail -> (NR >> Topt) tail
-        | Rem :: tail -> (NR >> Topt) tail
-        
+        | Mul :: tail -> (F >> Topt) tail
+        | Div :: tail -> (F >> Topt) tail
+        | Rem :: tail -> (F >> Topt) tail
         | _ -> tList
+    
+
     and F tList = (NR >> Powopt) tList
-    and Powopt tlist =
+    and Powopt tList =
         match tList with
         | Pow:: tail -> (F >> Powopt) tail
         |_ -> tList
     and NR tList =
         match tList with
-        | Sub :: tail -> (NR >> Topt) tail
+        | Sub :: tail -> NR tail
         | Flo value :: tail -> tail
         | Num value :: tail -> tail
         | Lpar :: tail -> match E tail with 
-                          | Rpar :: tail -> tail
+                          | Rpar :: more -> more
                           | _ -> raise parseError
+        | Func ftype :: Lpar :: tail -> match E tail with 
+                                        | Rpar :: more -> more
+                                        | _ -> raise parseError
         | _ -> raise parseError
     E tList
 //Evaluating parser 
@@ -260,6 +305,21 @@ let parseNeval tList =
                           | Rpar :: tail -> (tail, tval)
                           | _ -> raise parseError
         
+        | Func fType :: Lpar ::tail -> let (tLst, tval) = E tail
+                                       match tLst with 
+                                       | Rpar :: tail -> 
+                                            match fType with 
+                                            | Sin -> (tail, sin(tval))
+                                            | Cos -> (tail, cos(tval))
+                                            | Tan -> (tail, tan(tval))
+                                            | Exp -> (tail, exp(tval))
+                                            | Log -> (tail, log(tval))
+                                            | Sqrt -> (tail, sqrt(tval))
+                                            | _ -> raise parseError     
+                                       | _ -> raise parseError
+                                    
+
+        
         | _ -> raise parseError
     E tList
 
@@ -292,7 +352,7 @@ type Wrapper() =
 //Connection to the Console Application
 [<EntryPoint>]
 let main argv  =
-    Console.WriteLine("Simple Interpreter!")
+    Console.WriteLine("Simple Interpreter!!")
     let input:string = getInputString()
     let oList = lexer input
     let sList = printTList oList;
