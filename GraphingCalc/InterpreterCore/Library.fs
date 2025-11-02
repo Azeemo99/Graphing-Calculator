@@ -347,19 +347,33 @@ let eval (input: string) =
 type Wrapper() =
     static member Evaluate(input) =
         eval input
+    //parse a polynomial string like "1 0 -2" -> float list [1.0; 0.0; -2.0]
+    static member ParsePolynomial(input: string) : float[] =
+        input.Split(' ')
+        |> Array.map (fun s -> float (s.Trim()))
+
+    //evaluate polynomial at points x from start to end with step
+    static member EvalPoly(coeffs: float[], xStart: float, xEnd: float, step: float) : (float*float)[] =
+        let mutable xs = []
+        let mutable x = xStart
+        while x <= xEnd do
+            let y = coeffs |> Array.mapi (fun i c -> c * (x ** float i)) |> Array.sum
+            xs <- (x, y)::xs
+            x <- x + step
+        xs |> List.rev |> List.toArray
 
 
 //Connection to the Console Application
-[<EntryPoint>]
-let main argv  =
-    Console.WriteLine("Simple Interpreter!!")
-    let input:string = getInputString()
-    let oList = lexer input
-    let sList = printTList oList;
-    let pList = printTList (parser oList)
-    let Out = parseNeval oList
-    match snd Out with
-    | IVal i1 -> Console.WriteLine("Result = {0}", i1)
-    | FVal f1 -> Console.WriteLine("Result = {0}", f1)
-    0
+//[<EntryPoint>]
+//let main argv  =
+//    Console.WriteLine("Simple Interpreter!!")
+//    let input:string = getInputString()
+//    let oList = lexer input
+//    let sList = printTList oList;
+//    let pList = printTList (parser oList)
+//    let Out = parseNeval oList
+//    match snd Out with
+//    | IVal i1 -> Console.WriteLine("Result = {0}", i1)
+//    | FVal f1 -> Console.WriteLine("Result = {0}", f1)
+//    0
 
