@@ -348,7 +348,7 @@ type Wrapper() =
     static member Evaluate(input) =
         eval input
 
-
+(*
 //Connection to the Console Application
 [<EntryPoint>]
 let main argv  =
@@ -361,5 +361,5 @@ let main argv  =
     match snd Out with
     | IVal i1 -> Console.WriteLine("Result = {0}", i1)
     | FVal f1 -> Console.WriteLine("Result = {0}", f1)
-    0
+    0*)
 
