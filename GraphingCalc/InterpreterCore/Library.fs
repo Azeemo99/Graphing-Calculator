@@ -69,7 +69,6 @@ let rec scInt(iStr, iVal) =
     c :: tail when isdigit c -> scInt(tail, 10*iVal+(intVal c))
     | _ -> (iStr, iVal)
 
-
 let lexer input = 
     let rec scan input =
         match input with
@@ -342,11 +341,36 @@ let eval (input: string) =
     with
     | ex -> (false, ex.Message)
 
+
+
+/////Chris work
+
+///evaluate the interpreter expression at a given x value
+let evalAtX (expr:string) (xValue:float) : float =
+    //replace "x" with the number in the string
+    let replaced = expr.Replace("x", sprintf "(%f)" xValue)
+    match eval replaced with
+    | true, resultStr ->
+        //extract float from "Result = ..." string
+        let parts = resultStr.Split("=")
+        float (parts.[1].Trim())
+    | false, msg -> failwithf "Error evaluating expression: %s" msg
+
+///generate points for plotting: [(x1, y1); (x2, y2); ...]
+let evalPoly (expr:string) (xMin:float) (xMax:float) (dx:float) =
+    [xMin .. dx .. xMax] |> List.map (fun x -> (x, evalAtX expr x))
+
+ 
+/////
+
+
+
 //Connection to the WPF
 [<Class>]
 type Wrapper() =
     static member Evaluate(input) =
         eval input
+
     //parse a polynomial string like "1 0 -2" -> float list [1.0; 0.0; -2.0]
     static member ParsePolynomial(input: string) : float[] =
         input.Split(' ')
@@ -364,16 +388,16 @@ type Wrapper() =
 
 
 //Connection to the Console Application
-//[<EntryPoint>]
-//let main argv  =
-//    Console.WriteLine("Simple Interpreter!!")
-//    let input:string = getInputString()
-//    let oList = lexer input
-//    let sList = printTList oList;
-//    let pList = printTList (parser oList)
-//    let Out = parseNeval oList
-//    match snd Out with
-//    | IVal i1 -> Console.WriteLine("Result = {0}", i1)
-//    | FVal f1 -> Console.WriteLine("Result = {0}", f1)
-//    0
+[<EntryPoint>]
+let main argv  =
+    Console.WriteLine("Simple Interpreter!!")
+    let input:string = getInputString()
+    let oList = lexer input
+    let sList = printTList oList;
+    let pList = printTList (parser oList)
+    let Out = parseNeval oList
+    match snd Out with
+    | IVal i1 -> Console.WriteLine("Result = {0}", i1)
+    | FVal f1 -> Console.WriteLine("Result = {0}", f1)
+    0
 
