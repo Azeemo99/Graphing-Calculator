@@ -36,11 +36,20 @@ namespace InterpreterGUI
             }
 
         }
+        private void btnOpenPlot_Click(object sender, RoutedEventArgs e)
+        {
+            PlotWindow plotWindow = new PlotWindow();
+            plotWindow.Owner = this;
+
+            plotWindow.Show();
+        }
+
 
         private void ResultBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             String s = "y = 1x + c";
 
         }
+
     }
 }

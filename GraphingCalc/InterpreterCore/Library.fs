@@ -26,6 +26,8 @@ let isLetter c = System.Char.IsAsciiLetter c
 let lexError = System.Exception("Lexer error")
 let intVal (c:char) = (int)((int)c - (int)'0')
 let parseError = System.Exception("Parser error")
+let env = new System.Collections.Generic.Dictionary<string, v>()
+
 
 let rec scString(idStr, id) = 
     match idStr with
@@ -68,7 +70,6 @@ let rec scInt(iStr, iVal) =
     match iStr with
     c :: tail when isdigit c -> scInt(tail, 10*iVal+(intVal c))
     | _ -> (iStr, iVal)
-
 
 let lexer input = 
     let rec scan input =
@@ -193,7 +194,7 @@ let sqrt(v1: v) =
     | (FVal f1) -> FVal (Math.Sqrt(f1))
 
 // Grammar in BNF:
-// STATEMENT = VAR = NUMBER * VAR + VAR
+//<Stmt> ::= Id "=" <E> | <E>
 // <E>        ::= <T> <Eopt>
 // <Eopt>     ::= "+" <T> <Eopt> | "-" <T> <Eopt> | <empty>
 // <Powopt>   ::= "^" <F> <Powopt>
@@ -323,6 +324,16 @@ let parseNeval tList =
         | _ -> raise parseError
     E tList
 
+let parseStatement tList =
+    match tList with
+    | Id name :: Equ :: tail ->
+        let (tRest, value) = parseNeval tail
+        env.[name] <- value
+        (tRest, value)
+    | _ ->
+        parseNeval tList
+
+
 let rec printTList (lst:list<terminal>) : list<string> = 
     match lst with
     head::tail -> Console.Write("{0} ",head.ToString())
@@ -335,12 +346,36 @@ let rec printTList (lst:list<terminal>) : list<string> =
 let eval (input: string) =
     try
         let oList = lexer input
-        let Out = parseNeval oList
+        let Out = parseStatement oList
         match snd Out with
         | IVal i1 -> (true, sprintf "Result = %d" i1)
         | FVal f1 -> (true, sprintf "Result = %f" f1)
     with
     | ex -> (false, ex.Message)
+
+
+
+/////Chris work
+
+///evaluate the interpreter expression at a given x value
+let evalAtX (expr:string) (xValue:float) : float =
+    //replace "x" with the number in the string
+    let replaced = expr.Replace("x", sprintf "(%f)" xValue)
+    match eval replaced with
+    | true, resultStr ->
+        //extract float from "Result = ..." string
+        let parts = resultStr.Split("=")
+        float (parts.[1].Trim())
+    | false, msg -> failwithf "Error evaluating expression: %s" msg
+
+///generate points for plotting: [(x1, y1); (x2, y2); ...]
+let evalPoly (expr:string) (xMin:float) (xMax:float) (dx:float) =
+    [xMin .. dx .. xMax] |> List.map (fun x -> (x, evalAtX expr x))
+
+ 
+/////
+
+
 
 //Connection to the WPF
 [<Class>]

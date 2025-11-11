@@ -13,5 +13,7 @@
         <Button Content="Evaluate" Grid.Row="2" Margin="592,0,0,391" Height="30" Click="Evaluate_Click"/>
         <TextBox x:Name="ResultBox" Grid.Row="2" Height="30" IsReadOnly="True" Margin="0,35,362,356" TextChanged="ResultBox_TextChanged"/>
         <TextBox x:Name="ErrorBox" Grid.Row="2" Height="30" IsReadOnly="True" Margin="372,35,0,356"/>
+
+        <Button Name="btnOpenPlot" Content="Open Plot" Width="120" Height="30" Click="btnOpenPlot_Click" Margin="307,351,307,10" Grid.Row="2" />
     </Grid>
 </Window>
