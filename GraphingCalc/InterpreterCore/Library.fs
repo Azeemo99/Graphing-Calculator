@@ -7,8 +7,10 @@ module InterpreterCore
 // Reference: Peter Sestoft, Grammars and parsing with F#, Tech. Report
 
 open System
+open System.Collections.Generic
 type builtInFunc = 
     | Sin | Cos | Tan | Exp | Log | Sqrt 
+
 
 type v = 
     | IVal of int
@@ -16,6 +18,9 @@ type v =
 
 type terminal = 
     Add | Sub | Mul | Div | Lpar | Rpar | Num of int | Rem | Pow | Flo of float | Equ | Id of string| Func of builtInFunc
+
+let symbolTable : Map <String, v> = Map.empty
+
 
 let str2lst s = [for c in s -> c]
 let isblank c = System.Char.IsWhiteSpace c
@@ -26,8 +31,6 @@ let isLetter c = System.Char.IsAsciiLetter c
 let lexError = System.Exception("Lexer error")
 let intVal (c:char) = (int)((int)c - (int)'0')
 let parseError = System.Exception("Parser error")
-let env = new System.Collections.Generic.Dictionary<string, v>()
-
 
 let rec scString(idStr, id) = 
     match idStr with
@@ -194,7 +197,7 @@ let sqrt(v1: v) =
     | (FVal f1) -> FVal (Math.Sqrt(f1))
 
 // Grammar in BNF:
-//<Stmt> ::= Id "=" <E> | <E>
+// <STATEMENT> = ID "=" <E> |  <E>
 // <E>        ::= <T> <Eopt>
 // <Eopt>     ::= "+" <T> <Eopt> | "-" <T> <Eopt> | <empty>
 // <Powopt>   ::= "^" <F> <Powopt>
@@ -205,7 +208,8 @@ let sqrt(v1: v) =
 
 
 //Non-Evaluating Parser
-let parser tList = 
+let parser (tList) = 
+
     let rec E tList = (T >> Eopt) tList        
     and Eopt tList = 
         match tList with
@@ -232,6 +236,7 @@ let parser tList =
         match tList with
         | Sub :: tail -> NR tail
         | Flo value :: tail -> tail
+        | Id name :: tail -> tail
         | Num value :: tail -> tail
         | Lpar :: tail -> match E tail with 
                           | Rpar :: more -> more
@@ -239,25 +244,32 @@ let parser tList =
         | Func ftype :: Lpar :: tail -> match E tail with 
                                         | Rpar :: more -> more
                                         | _ -> raise parseError
+        
         | _ -> raise parseError
     E tList
+
+
 //Evaluating parser 
-let parseNeval tList = 
-    let rec E tList = (T >> Eopt) tList
-    and Eopt (tList, value) = 
+let parseNeval (symbolTable : Map<String, v>, tList:  terminal list) : (terminal list * v * Map<string, v>)= 
+    let rec E (tList: terminal list) : (terminal list * v * Map<string, v>) =
+        let (tListAfterT, firstVal, symTable) = T tList
+        Eopt (tListAfterT, firstVal, symTable)
+    and Eopt (tList, value, symbolTable)  = 
         match tList with
-        | Add :: tail -> let (tLst, tval) = T tail
-                         Eopt (tLst, add(value, tval))
-        | Sub :: tail -> let (tLst, tval) = T tail
-                         Eopt (tLst, sub(value, tval))
+        | Add :: tail -> let (tLst, tval, symbolTable) = T tail
+                         Eopt (tLst, add(value, tval), symbolTable)
+        | Sub :: tail -> let (tLst, tval, symbolTable) = T tail
+                         Eopt (tLst, sub(value, tval), symbolTable)
 
-        | _ -> (tList, value)
-    and T tList = (F >> Topt) tList
-    and Topt (tList, value: v) =
+        | _ -> (tList, value, symbolTable)
+    and T (tList: terminal list) : (terminal list * v * Map<string, v>) =
+        let (tListAfterF, firstVal, symTable) = F tList
+        Topt (tListAfterF, firstVal, symTable)
+    and Topt (tList, value: v, symbolTable) =
         match tList with
-        | Mul :: tail -> let (tLst, tval) = F tail
-                         Topt (tLst, mul(value , tval))
-        | Div :: tail -> let (tLst, tval) = F tail
+        | Mul :: tail -> let (tLst, tval, symbolTable) = F tail
+                         Topt (tLst, mul(value , tval), symbolTable)
+        | Div :: tail -> let (tLst, tval, symbolTable) = F tail
                          match (tval) with 
                          | IVal 0 ->
                                 //Console.WriteLine("Division by zero error")
@@ -265,9 +277,9 @@ let parseNeval tList =
                          | FVal 0.0 ->
                                 //Console.WriteLine("Division by zero error")
                                 raise parseError
-                         | _ -> Topt (tLst, div(value, tval))
+                         | _ -> Topt (tLst, div(value, tval), symbolTable)
 
-        | Rem :: tail -> let (tLst, tval) = F tail
+        | Rem :: tail -> let (tLst, tval, symbolTable) = F tail
                          match (tval) with 
                          | IVal 0 ->
                                 //Console.WriteLine("Division by zero error")
@@ -275,47 +287,58 @@ let parseNeval tList =
                          | FVal 0.0 ->
                                 //Console.WriteLine("Division by zero error")
                                 raise parseError
-                         | _ -> Topt (tLst, rem(value, tval))
+                         | _ -> Topt (tLst, rem(value, tval), symbolTable)
 
 
-        | _ -> (tList, value)
+        | _ -> (tList, value, symbolTable)
     
-    and F tList = (NR >> Powopt) tList
+    and F (tList: terminal list) : (terminal list * v * Map<string, v>) =
+        let (tListAfterNR, firstVal, symTable) = NR tList
+        Powopt (tListAfterNR, firstVal, symTable)
     
-    and Powopt (tList, value) = 
+    and Powopt (tList, value, symbolTable) = 
         match tList with
-        | Pow :: tail -> let (tLst, tval) = F tail
-                         Powopt (tLst, pow(value, tval))    
-        |_ -> (tList, value)
+        | Pow :: tail -> let (tLst, tval, symbolTable) = F tail
+                         Powopt (tLst, pow(value, tval), symbolTable)   
+        |_ -> (tList, value, symbolTable)
 
 
 
 
     and NR tList =
         match tList with 
-        | Sub :: tail -> let (tLst, value) = NR tail
+        | Sub :: tail -> let (tLst, value, symbolTable) = NR tail
                          match value with
-                         | IVal i1 -> (tLst , IVal -i1)
-                         | FVal f1 -> (tLst, FVal -f1)
+                         | IVal i1 -> (tLst , IVal -i1, symbolTable)
+                         | FVal f1 -> (tLst, FVal -f1, symbolTable)
                          
-        | Flo value :: tail -> (tail, FVal value)
-        | Num value :: tail -> (tail, IVal value)
+        | Flo value :: tail -> (tail, FVal value, symbolTable)
 
-        | Lpar :: tail -> let (tLst, tval) = E tail
-                          match tLst with 
-                          | Rpar :: tail -> (tail, tval)
-                          | _ -> raise parseError
+        | Id name :: tail -> 
+            match symbolTable.TryFind(name) with
+            | Some value -> (tail, value, symbolTable)
+            | None -> raise parseError
+         
+            
         
-        | Func fType :: Lpar ::tail -> let (tLst, tval) = E tail
+        | Num value :: tail -> (tail, IVal value, symbolTable)
+
+        | Lpar :: tail -> 
+            let (tLst, tval, symTable) = E tail
+            match tLst with 
+            | Rpar :: tail -> (tail, tval, symTable)
+            | _ -> raise parseError
+        
+        | Func fType :: Lpar ::tail -> let (tLst, tval, symTable) = E tail
                                        match tLst with 
                                        | Rpar :: tail -> 
                                             match fType with 
-                                            | Sin -> (tail, sin(tval))
-                                            | Cos -> (tail, cos(tval))
-                                            | Tan -> (tail, tan(tval))
-                                            | Exp -> (tail, exp(tval))
-                                            | Log -> (tail, log(tval))
-                                            | Sqrt -> (tail, sqrt(tval))
+                                            | Sin -> (tail, sin(tval), symTable)
+                                            | Cos -> (tail, cos(tval), symTable)
+                                            | Tan -> (tail, tan(tval), symTable)
+                                            | Exp -> (tail, exp(tval), symTable)
+                                            | Log -> (tail, log(tval), symTable)
+                                            | Sqrt -> (tail, sqrt(tval), symTable)
                                             | _ -> raise parseError     
                                        | _ -> raise parseError
                                     
@@ -324,15 +347,19 @@ let parseNeval tList =
         | _ -> raise parseError
     E tList
 
-let parseStatement tList =
+//statement parser
+
+let parseStatement (symbolTable: Map<string, v>, tList: terminal list) : (terminal list * v * Map<string, v>) =
     match tList with
     | Id name :: Equ :: tail ->
-        let (tRest, value) = parseNeval tail
-        env.[name] <- value
-        (tRest, value)
+        
+        let (rem, value, symTableAfterEval) = parseNeval (symbolTable, tail)
+        
+        let updatedSymTable = symTableAfterEval.Add(name, value)
+        (rem, value, updatedSymTable)
     | _ ->
-        parseNeval tList
-
+        
+        parseNeval (symbolTable, tList)
 
 let rec printTList (lst:list<terminal>) : list<string> = 
     match lst with
@@ -343,20 +370,22 @@ let rec printTList (lst:list<terminal>) : list<string> =
             []
 
 //Eval Function
-let eval (input: string) =
+let eval (symTable, input: string) =
     try
         let oList = lexer input
-        let Out = parseStatement oList
-        match snd Out with
-        | IVal i1 -> (true, sprintf "Result = %d" i1)
-        | FVal f1 -> (true, sprintf "Result = %f" f1)
+        let (rem, value, updatedSymTable) = parseStatement (symTable, oList)
+        match value with
+        | IVal i1 -> (true, sprintf "Result = %d" i1, updatedSymTable)
+        | FVal f1 -> (true, sprintf "Result = %f" f1, updatedSymTable)
     with
-    | ex -> (false, ex.Message)
+    | ex -> (false, ex.Message, symTable)
+
+
 
 
 
 /////Chris work
-
+(*
 ///evaluate the interpreter expression at a given x value
 let evalAtX (expr:string) (xValue:float) : float =
     //replace "x" with the number in the string
@@ -371,7 +400,7 @@ let evalAtX (expr:string) (xValue:float) : float =
 ///generate points for plotting: [(x1, y1); (x2, y2); ...]
 let evalPoly (expr:string) (xMin:float) (xMax:float) (dx:float) =
     [xMin .. dx .. xMax] |> List.map (fun x -> (x, evalAtX expr x))
-
+*)
  
 /////
 
@@ -380,8 +409,13 @@ let evalPoly (expr:string) (xMin:float) (xMax:float) (dx:float) =
 //Connection to the WPF
 [<Class>]
 type Wrapper() =
-    static member Evaluate(input) =
-        eval input
+    // symbol table stored in a reference cell, not mutable
+    static let symRef = ref symbolTable   // symbolTable comes from the interpreter
+
+    static member Evaluate(input: string) : string =
+        let (success, result, updatedTable) = eval(!symRef, input)
+        symRef := updatedTable   // update reference to new map, no `mutable` keyword used
+        result
 
     //parse a polynomial string like "1 0 -2" -> float list [1.0; 0.0; -2.0]
     static member ParsePolynomial(input: string) : float[] =
@@ -399,17 +433,5 @@ type Wrapper() =
         xs |> List.rev |> List.toArray
 
 
-//Connection to the Console Application
-[<EntryPoint>]
-let main argv  =
-    Console.WriteLine("Simple Interpreter!!")
-    let input:string = getInputString()
-    let oList = lexer input
-    let sList = printTList oList;
-    let pList = printTList (parser oList)
-    let Out = parseNeval oList
-    match snd Out with
-    | IVal i1 -> Console.WriteLine("Result = {0}", i1)
-    | FVal f1 -> Console.WriteLine("Result = {0}", f1)
-    0
+
 

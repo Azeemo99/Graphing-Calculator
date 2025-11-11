@@ -8,25 +8,31 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
- 
+using Microsoft.FSharp.Collections;
 
 namespace InterpreterGUI
 {
     public partial class MainWindow : Window
+
+
     {
+
+        private FSharpMap<string, InterpreterCore.v> symTable = MapModule.Empty<string, InterpreterCore.v>();
         public MainWindow()
         {
             InitializeComponent();
+            
         }
 
         private void Evaluate_Click(object sender, RoutedEventArgs e)
         {
+
             string input = InputBox.Text;
-            var s = InterpreterCore.eval(input);
+            var s = InterpreterCore.eval(symTable, input);
             if (s.Item1)
             { 
                 ResultBox.Text = s.Item2;
-                
+                symTable = s.Item3;
                 ErrorBox.Text = "";
             }
             else
@@ -34,6 +40,7 @@ namespace InterpreterGUI
                 ErrorBox.Text = s.Item2;
                 ResultBox.Text = "";
             }
+
 
         }
         private void btnOpenPlot_Click(object sender, RoutedEventArgs e)
