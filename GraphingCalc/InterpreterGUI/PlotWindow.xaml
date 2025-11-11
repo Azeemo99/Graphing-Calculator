@@ -9,8 +9,10 @@
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
-            <TextBox x:Name="FunctionBox" Width="300" Text="1 1" Margin="0,0,10,0"/>
+            <TextBox x:Name="FunctionBox" Width="300" Text="1 0 0" Margin="0,0,10,0"/>
             <Button x:Name="DrawButton" Content="Draw" Width="100" Click="DrawButton_Click"/>
+            <TextBox x:Name="xStartBox" Text="Start x" Width="150" Margin="20,0,10,0"/>
+            <TextBox x:Name="xEndBox" Text="End x" Width="150" Margin="10,0,20,0"/>
         </StackPanel>
 
         <Canvas x:Name="PlotCanvas" Grid.Row="1" Background="White" />
