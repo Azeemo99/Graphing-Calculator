@@ -21,37 +21,21 @@ namespace InterpreterGUI
             try
             {
                 //parse coefficients from input
-                //example input: "1 0 -2"  ->  1*x^2 + 0*x - 2
-                var coeffs = funcExpr.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                                     .Select(s => double.Parse(s.Trim()))
-                                     .ToArray();
+                var points = InterpreterCore.evalPoly(funcExpr, xStart, xEnd, 0.1)
+                            .Select(p => new Point(p.Item1, p.Item2))
+                            .ToList();
 
-                //generate raw polynomial points
-                double step = 0.5;
-                var rawPoints = Enumerable.Range(0, (int)((xEnd - xStart) / step) + 1)
-                                          .Select(i =>
-                                          {
-                                              double x = xStart + i * step;
-                                              double y = 0.0;
-                                              int deg = coeffs.Length - 1;
-                                              for (int j = 0; j < coeffs.Length; j++)
-                                              {
-                                                  y += coeffs[j] * Math.Pow(x, deg - j);
-                                              }
-                                              return new Point(x, y);
-                                          })
-                                          .ToList();
 
-                if (rawPoints.Count < 4)
+                if (points.Count < 4)
                     throw new Exception("Need at least 4 points for Catmull-Rom interpolation.");
 
                 //compute smooth spline points
                 List<Point> smoothPoints = new List<Point>();
-                for (int i = 0; i < rawPoints.Count - 3; i++)
+                for (int i = 0; i < points.Count - 3; i++)
                 {
                     for (double t = 0; t < 1.0; t += 0.05)
                     {
-                        smoothPoints.Add(CatmullRom(rawPoints[i], rawPoints[i + 1], rawPoints[i + 2], rawPoints[i + 3], t));
+                        smoothPoints.Add(CatmullRom(points[i], points[i + 1], points[i + 2], points[i + 3], t));
                     }
                 }
 
@@ -70,7 +54,7 @@ namespace InterpreterGUI
 
                 //draw axes with fallback dashed reference lines
 
-                //  X-Axis (Y = 0):
+                //  X-Axis (y = 0):
                 double xAxisPos; // Y position for X-axis
                 Line xAxis = new Line { X1 = 0, X2 = canvasWidth, StrokeThickness = 1 };
 
@@ -89,7 +73,7 @@ namespace InterpreterGUI
                 }
                 PlotCanvas.Children.Add(xAxis);
 
-                //  Y-Axis (X = 0):
+                //  Y-Axis (x = 0):
                 double xZero = canvasWidth * (-xStart / (xEnd - xStart));
                 Line yAxis = new Line
                 {
