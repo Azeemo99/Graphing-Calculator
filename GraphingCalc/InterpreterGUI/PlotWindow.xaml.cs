@@ -1,3 +1,4 @@
+using Microsoft.FSharp.Collections;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,10 +10,15 @@ using System.Windows.Shapes;
 namespace InterpreterGUI
 {
     public partial class PlotWindow : Window
+
+
     {
-        public PlotWindow()
+        private FSharpMap<string, InterpreterCore.v> symTable;
+
+        public PlotWindow(FSharpMap<string, InterpreterCore.v> sharedTable)
         {
             InitializeComponent();
+            symTable = sharedTable;
         }
 
         //Main plotting function using Catmull-Rom spline for smooth curve
@@ -20,118 +26,119 @@ namespace InterpreterGUI
         {
             try
             {
-                //parse coefficients from input
-                //example input: "1 0 -2"  ->  1*x^2 + 0*x - 2
-                var coeffs = funcExpr.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries)
-                                     .Select(s => double.Parse(s.Trim()))
-                                     .ToArray();
+                // --- 1. Build x samples ---
+                double step = 0.25;
+                List<double> xVals = new List<double>();
+                for (double x = xStart; x <= xEnd; x += step)
+                    xVals.Add(x);
 
-                //generate raw polynomial points
-                double step = 0.5;
-                var rawPoints = Enumerable.Range(0, (int)((xEnd - xStart) / step) + 1)
-                                          .Select(i =>
-                                          {
-                                              double x = xStart + i * step;
-                                              double y = 0.0;
-                                              int deg = coeffs.Length - 1;
-                                              for (int j = 0; j < coeffs.Length; j++)
-                                              {
-                                                  y += coeffs[j] * Math.Pow(x, deg - j);
-                                              }
-                                              return new Point(x, y);
-                                          })
-                                          .ToList();
+                var fsharpXVals = Microsoft.FSharp.Collections.ListModule.OfSeq(xVals);
 
-                if (rawPoints.Count < 4)
-                    throw new Exception("Need at least 4 points for Catmull-Rom interpolation.");
+                // --- 2. Call F# plotEval ---
+                var result = InterpreterCore.plotEval(symTable, funcExpr, fsharpXVals);
 
-                //compute smooth spline points
-                List<Point> smoothPoints = new List<Point>();
-                for (int i = 0; i < rawPoints.Count - 3; i++)
+                // --- 3. Filter invalid points ---
+                var rawPoints = result
+                    .Where(p => !double.IsNaN(p.Item2) && !double.IsInfinity(p.Item2))
+                    .Select(p => new Point(p.Item1, p.Item2))
+                    .ToList();
+
+                if (rawPoints.Count == 0)
                 {
-                    for (double t = 0; t < 1.0; t += 0.05)
-                    {
-                        smoothPoints.Add(CatmullRom(rawPoints[i], rawPoints[i + 1], rawPoints[i + 2], rawPoints[i + 3], t));
-                    }
+                    MessageBox.Show("No valid points to plot.");
+                    return;
                 }
 
-                //find y min/max for scaling
+                // --- 4. Check for horizontal line ---
+                List<Point> smoothPoints;
+                if (rawPoints.All(p => p.Y == rawPoints[0].Y))
+                {
+                    // Constant function: no smoothing needed
+                    smoothPoints = new List<Point>(rawPoints);
+                }
+                else if (rawPoints.Count < 4)
+                {
+                    // Not enough points for Catmull-Rom
+                    smoothPoints = new List<Point>(rawPoints);
+                }
+                else
+                {
+                    // Apply Catmull-Rom smoothing
+                    smoothPoints = new List<Point>();
+                    for (int i = 0; i < rawPoints.Count - 3; i++)
+                        for (double t = 0; t <= 1.0; t += 0.05)
+                            smoothPoints.Add(CatmullRom(rawPoints[i], rawPoints[i + 1],
+                                                        rawPoints[i + 2], rawPoints[i + 3], t));
+                }
+
+                // --- 5. Find y-min/max and prevent zero range ---
                 double yMin = smoothPoints.Min(p => p.Y);
                 double yMax = smoothPoints.Max(p => p.Y);
-                double yPadding = (yMax - yMin) * 0.1;
-                yMin -= yPadding;
-                yMax += yPadding;
+                if (yMax == yMin)
+                {
+                    yMin -= 1.0;
+                    yMax += 1.0;
+                }
+                double padding = (yMax - yMin) * 0.1;
+                yMin -= padding;
+                yMax += padding;
 
-                //clear canvas
+                // --- 6. Clear canvas ---
                 PlotCanvas.Children.Clear();
                 double canvasWidth = PlotCanvas.ActualWidth;
                 double canvasHeight = PlotCanvas.ActualHeight;
 
-
-                //draw axes with fallback dashed reference lines
-
-                //  X-Axis (Y = 0):
-                double xAxisPos; // Y position for X-axis
-                Line xAxis = new Line { X1 = 0, X2 = canvasWidth, StrokeThickness = 1 };
-
+                double xAxisPos;
                 if (0 >= yMin && 0 <= yMax)
                 {
                     xAxisPos = canvasHeight - ((0 - yMin) / (yMax - yMin) * canvasHeight);
-                    xAxis.Y1 = xAxis.Y2 = xAxisPos;
-                    xAxis.Stroke = Brushes.Black;
                 }
                 else
                 {
                     xAxisPos = (0 < yMin) ? canvasHeight - 10 : 10;
-                    xAxis.Y1 = xAxis.Y2 = xAxisPos;
-                    xAxis.Stroke = Brushes.Gray;
-                    xAxis.StrokeDashArray = new DoubleCollection { 4, 4 };
                 }
-                PlotCanvas.Children.Add(xAxis);
-
-                //  Y-Axis (X = 0):
-                double xZero = canvasWidth * (-xStart / (xEnd - xStart));
-                Line yAxis = new Line
+                // --- Draw X-axis line ---
+                Line xAxisLine = new Line
                 {
-                    Y1 = 0,
-                    Y2 = canvasHeight,
+                    X1 = 0,
+                    X2 = canvasWidth,
+                    Y1 = xAxisPos,
+                    Y2 = xAxisPos,
+                    Stroke = Brushes.Black,
                     StrokeThickness = 1
                 };
+                PlotCanvas.Children.Add(xAxisLine);
 
-                if (0 >= xStart && 0 <= xEnd)
+                // --- Draw Y-axis line ---
+                double xZero = canvasWidth * (-xStart / (xEnd - xStart));
+                Line yAxisLine = new Line
                 {
-                    //X=0 is within visible range
-                    yAxis.X1 = xZero;
-                    yAxis.X2 = xZero;
-                    yAxis.Stroke = Brushes.Black;
-                }
-                else
-                {
-                    //X=0 is outside visible range
-                    double xPos = (0 < xStart) ? 10 : canvasWidth - 10;
-                    yAxis.X1 = xPos;
-                    yAxis.X2 = xPos;
-                    yAxis.Stroke = Brushes.Gray;
-                    yAxis.StrokeDashArray = new DoubleCollection { 4, 4 };
-                }
-                PlotCanvas.Children.Add(yAxis);
+                    X1 = xZero,
+                    X2 = xZero,
+                    Y1 = 0,
+                    Y2 = canvasHeight,
+                    Stroke = Brushes.Black,
+                    StrokeThickness = 1
+                };
+                PlotCanvas.Children.Add(yAxisLine);
 
-                //Draw axis ticks and labels
                 DrawAxisTicks(xStart, xEnd, yMin, yMax, canvasWidth, canvasHeight, xAxisPos);
+                // --- 7. Draw axes ---
+                
 
-
-                //draw smooth curve
+                // --- 8. Draw curve ---
                 Polyline polyline = new Polyline
                 {
                     Stroke = Brushes.Blue,
                     StrokeThickness = 2
                 };
 
+                double yRange = yMax - yMin;
                 foreach (var p in smoothPoints)
                 {
-                    double xCanvas = (p.X - xStart) / (xEnd - xStart) * canvasWidth;
-                    double yCanvas = canvasHeight - ((p.Y - yMin) / (yMax - yMin) * canvasHeight);
-                    polyline.Points.Add(new Point(xCanvas, yCanvas));
+                    double xc = (p.X - xStart) / (xEnd - xStart) * canvasWidth;
+                    double yc = canvasHeight - ((p.Y - yMin) / yRange * canvasHeight);
+                    polyline.Points.Add(new Point(xc, yc));
                 }
 
                 PlotCanvas.Children.Add(polyline);
@@ -141,6 +148,14 @@ namespace InterpreterGUI
                 MessageBox.Show("Error plotting function: " + ex.Message);
             }
         }
+
+
+        public void UpdateSymbolTable(FSharpMap<string, InterpreterCore.v> newTable)
+        {
+            symTable = newTable;
+        }
+
+
 
         //Catmull-Rom interpolation helper
         private Point CatmullRom(Point p0, Point p1, Point p2, Point p3, double t)
@@ -266,5 +281,9 @@ namespace InterpreterGUI
                 PlotCanvas.Children.Add(label);
             }
         }
+    
+        
     }
+
+
 }

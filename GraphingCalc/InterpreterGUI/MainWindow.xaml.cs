@@ -34,6 +34,12 @@ namespace InterpreterGUI
                 ResultBox.Text = s.Item2;
                 symTable = s.Item3;
                 ErrorBox.Text = "";
+                foreach (Window w in this.OwnedWindows) 
+                {
+                    if (w is PlotWindow pw) {
+                        pw.UpdateSymbolTable(symTable);
+                    }
+                }
             }
             else
             {
@@ -45,7 +51,7 @@ namespace InterpreterGUI
         }
         private void btnOpenPlot_Click(object sender, RoutedEventArgs e)
         {
-            PlotWindow plotWindow = new PlotWindow();
+            PlotWindow plotWindow = new PlotWindow(symTable);
             plotWindow.Owner = this;
 
             plotWindow.Show();

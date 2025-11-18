@@ -380,27 +380,45 @@ let eval (symTable, input: string) =
     with
     | ex -> (false, ex.Message, symTable)
 
+let plotEval (symbolTable : Map<string, v>, input: string, xVals: float list) =
+    let tokens = lexer input
+    // Handle two cases:
+    // Case 1: starts with y = ...
+    // Case 2: just an expression (constant or function)
+    let exprTokens =
+        match tokens with
+        | Id "y" :: Equ :: tail -> tail
+        | _ -> tokens  // use tokens directly if no "y ="
+    
+    [for x in xVals do
+        let temp = symbolTable.Add("x", FVal x)
+        let (_, yVal, _) = parseNeval(temp, exprTokens)
+        let yFloat =
+            match yVal with
+            | IVal i -> float i
+            | FVal f -> f
+        yield (x, yFloat)]
 
 
 
 
 /////Chris work
-(*
+
 ///evaluate the interpreter expression at a given x value
-let evalAtX (expr:string) (xValue:float) : float =
+let evalAtX (expr:string, symTable) (xValue:float) : float =
     //replace "x" with the number in the string
     let replaced = expr.Replace("x", sprintf "(%f)" xValue)
-    match eval replaced with
-    | true, resultStr ->
+    match eval(symTable, replaced) with
+    | true, resultStr, symTable ->
         //extract float from "Result = ..." string
         let parts = resultStr.Split("=")
         float (parts.[1].Trim())
-    | false, msg -> failwithf "Error evaluating expression: %s" msg
+    | false, msg, symTable -> failwithf "Error evaluating expression: %s" msg
 
 ///generate points for plotting: [(x1, y1); (x2, y2); ...]
 let evalPoly (expr:string) (xMin:float) (xMax:float) (dx:float) =
-    [xMin .. dx .. xMax] |> List.map (fun x -> (x, evalAtX expr x))
-*)
+    [xMin .. dx .. xMax] |> List.map (fun x -> (x, evalAtX( expr, symbolTable)))
+
  
 /////
 
