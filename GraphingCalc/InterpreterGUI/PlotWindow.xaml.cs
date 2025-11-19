@@ -204,6 +204,8 @@ namespace InterpreterGUI
             PlotFunction(FunctionBox.Text, xStart, xEnd);
         }
 
+
+
         //Helper function to draw axes
         private void DrawAxisTicks(double xStart, double xEnd, double yMin, double yMax, double canvasWidth, double canvasHeight, double xAxisPos)
         {
@@ -281,7 +283,13 @@ namespace InterpreterGUI
                 PlotCanvas.Children.Add(label);
             }
         }
-    
+
+        private void DiffButton_click(object sender, RoutedEventArgs e) {
+            var result = InterpreterCore.differentiate("1");
+
+
+        }
+
         
     }
 

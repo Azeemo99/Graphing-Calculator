@@ -121,6 +121,16 @@ let getInputString() : string =
     Console.Write("Enter an expression: ")
     Console.ReadLine()
 
+//function to check if the next value can be implicitly multiplied
+let implicitMult token = 
+    match token with 
+    | Num _-> true
+    | Flo _-> true
+    | Func _-> true
+    | Id _ -> true
+    | Lpar -> true
+    
+    | _ -> false
 
 //Type checking methods for operations 
 //Currently working for floats and for Ints
@@ -289,7 +299,10 @@ let parseNeval (symbolTable : Map<String, v>, tList:  terminal list) : (terminal
                                 raise parseError
                          | _ -> Topt (tLst, rem(value, tval), symbolTable)
 
-
+        | token :: _ when implicitMult(token) ->
+            
+            let (tLst, tval, symTable) = F tList
+            Topt(tLst, mul(value, tval), symTable)
         | _ -> (tList, value, symbolTable)
     
     and F (tList: terminal list) : (terminal list * v * Map<string, v>) =
@@ -398,6 +411,24 @@ let plotEval (symbolTable : Map<string, v>, input: string, xVals: float list) =
             | IVal i -> float i
             | FVal f -> f
         yield (x, yFloat)]
+
+//differentiates each value
+let recDiff(tokens) = 
+    match tokens with 
+    | Num a:: tail -> (tail, 0)
+    | Flo a :: tail -> (tail, 0)
+
+    | _ -> raise parseError
+
+
+
+
+//function to differentiate a string
+let differentiate(data :string) = 
+    let tokens = lexer data
+    recDiff(tokens)
+    
+    
 
 
 
