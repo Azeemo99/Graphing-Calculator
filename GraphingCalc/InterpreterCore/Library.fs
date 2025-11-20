@@ -11,6 +11,16 @@ open System.Collections.Generic
 type builtInFunc = 
     | Sin | Cos | Tan | Exp | Log | Sqrt 
 
+type Expr =
+    | Const of float
+    | Var of string
+    | Add of Expr * Expr
+    | Sub of Expr * Expr
+    | Mul of Expr * Expr
+    | Div of Expr * Expr
+    | Pow of Expr * Expr
+    | Neg of Expr
+    | Func of builtInFunc * Expr
 
 type v = 
     | IVal of int
@@ -412,23 +422,70 @@ let plotEval (symbolTable : Map<string, v>, input: string, xVals: float list) =
             | FVal f -> f
         yield (x, yFloat)]
 
-//differentiates each value
-let recDiff(tokens) = 
-    match tokens with 
-    | Num a:: tail -> (tail, 0)
-    | Flo a :: tail -> (tail, 0)
+//diff an x value 
 
-    | _ -> raise parseError
+let diffXVal(n1, id, n2) = 
+    if n2 = 2 then 
+        $"{n1 * n2}x"
+    elif n2 = 1 then 
+        $"{n1 * n2}"
+    else 
+        $"{n1 * n2}x^{n2-1}"
 
 
+let rec recDiff (tokens, value) =
+    match tokens with
+
+    // --- ax^(-n) with coefficient ---
+    | Num n1 :: Id name :: Pow :: Sub :: Num n2 :: tail ->
+        recDiff(tail, value + diffXVal(n1, name, -n2))
+
+    // --- ax^n with coefficient ---
+    | Num n1 :: Id name :: Pow :: Num n2 :: tail ->
+        recDiff(tail, value + diffXVal(n1, name, n2))
+
+    // --- x^(-n) ---
+    | Id name :: Pow :: Sub :: Num n2 :: tail ->
+        recDiff(tail, value + diffXVal(1, name, -n2))
+
+    // --- x^n ---
+    | Id name :: Pow :: Num n2 :: tail ->
+        recDiff(tail, value + diffXVal(1, name, n2))
+
+    // --- ax ---
+    | Num n1 :: Id name :: tail ->
+        recDiff(tail, value + diffXVal(n1, name, 1))
+
+    // --- x ---
+    | Id name :: tail ->
+        recDiff(tail, value + diffXVal(1, name, 1))
+
+    // --- constants ---
+    | Num _ :: tail ->
+        recDiff(tail, value + "0")
+
+    | Flo _ :: tail ->
+        recDiff(tail, value + "0")
+
+    // --- operators ---
+    | Add :: tail ->
+        recDiff(tail, value + "+")
+
+    | Sub :: tail ->
+        recDiff(tail, value + "-")
+
+    // --- end of token stream ---
+    | [] ->
+        ([], value)
+
+    // --- unexpected token ---
+    | _ ->
+        ([], value)
 
 
-//function to differentiate a string
-let differentiate(data :string) = 
-    let tokens = lexer data
-    recDiff(tokens)
     
-    
+let rec diff expression =
+    "a"
 
 
 

@@ -284,13 +284,21 @@ namespace InterpreterGUI
             }
         }
 
-        private void DiffButton_click(object sender, RoutedEventArgs e) {
-            var result = InterpreterCore.differentiate("1");
+        private void DiffButton_click(object sender, RoutedEventArgs e)
+        {
+            string input = FunctionBox.Text;
 
-
+            // Call into F#
+            
+            String result = Aststuff.differentiate(input);
+            // Display result
+            ResultBox.Text = result;
         }
 
-        
+        private void FunctionBox_Copy_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            
+        }
     }
 
 
